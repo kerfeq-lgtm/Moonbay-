@@ -27,11 +27,12 @@ function getMoonInfo(date: Date) {
  return { age, phase, illumination: Math.round(illumination * 100), daysToFull, daysToNew, fullDate, newDate };
 }
 
-function TerritoryMap({ claims, boundaries, draftBoundary, flyTo, mode, onMapClick }: {
+function TerritoryMap({ claims, boundaries, draftBoundary, flyTo, userLocation, mode, onMapClick }: {
  claims: MapClaim[];
  boundaries: Boundary[];
  draftBoundary: [number, number][];
  flyTo: [number, number] | null;
+ userLocation: [number, number] | null;
  mode: MapMode;
  onMapClick: (point: [number, number]) => void;
 }) {
@@ -61,6 +62,10 @@ function TerritoryMap({ claims, boundaries, draftBoundary, flyTo, mode, onMapCli
   claims.forEach(claim => {
    L.marker([claim.lat, claim.lng], { icon: pinIcon }).bindTooltip(claim.name).addTo(layers);
   });
+  if (userLocation) {
+   const currentIcon = L.divIcon({ className: 'moonbay-current-location', html: '<span></span>', iconSize: [22, 22], iconAnchor: [11, 11] });
+   L.marker(userLocation, { icon: currentIcon, keyboard: false }).bindTooltip('Your current location (not saved)').addTo(layers);
+  }
   boundaries.forEach(boundary => {
    L.polygon(boundary.points, { color: '#a9bd9d', fillColor: '#536d4f', fillOpacity: 0.24, weight: 3 }).bindTooltip(boundary.name).addTo(layers);
   });
@@ -68,7 +73,7 @@ function TerritoryMap({ claims, boundaries, draftBoundary, flyTo, mode, onMapCli
    if (draftBoundary.length > 1) L.polyline(draftBoundary, { color: '#d5b17e', dashArray: '6 6', weight: 3 }).addTo(layers);
    draftBoundary.forEach(point => L.circleMarker(point, { radius: 5, color: '#d5b17e', fillColor: '#d5b17e', fillOpacity: 1 }).addTo(layers));
   }
- }, [claims, boundaries, draftBoundary]);
+ }, [claims, boundaries, draftBoundary, userLocation]);
  useEffect(() => { if (flyTo && mapRef.current) mapRef.current.flyTo(flyTo, 13, { duration: 1 }); }, [flyTo]);
  return <div className={'territory-map ' + (mode === 'view' ? '' : 'map-active')} ref={containerRef} aria-label="Interactive territory map" />;
 }
@@ -90,6 +95,18 @@ function App() {
  const [mapSearch, setMapSearch] = useState('');
  const [searchStatus, setSearchStatus] = useState('');
  const [flyTo, setFlyTo] = useState<[number, number] | null>(null);
+ const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+ const [locationStatus, setLocationStatus] = useState('Location is off until you choose to share it with Moonbay.');
+ const [locationBusy, setLocationBusy] = useState(false);
+ const locateMe = () => {
+  if (!navigator.geolocation) { setLocationStatus('This browser does not support location access.'); return; }
+  setLocationBusy(true); setLocationStatus('Requesting location permission…');
+  navigator.geolocation.getCurrentPosition(
+   position => { const point:[number,number]=[position.coords.latitude,position.coords.longitude]; setUserLocation(point); setFlyTo(point); setMapMessage('Map centered on your current location. Your location is temporary and is not saved.'); setLocationStatus('Location is active for this session only.'); setLocationBusy(false); },
+   error => { setLocationBusy(false); setLocationStatus(error.code===1?'Location permission was denied. You can enable it in your browser settings or search for a place instead.':'Could not get your location. Check device location services or search for a place instead.'); },
+   {enableHighAccuracy:false,timeout:12000,maximumAge:60000}
+  );
+ };
  const [draftBoundary, setDraftBoundary] = useState<[number, number][]>([]);
  const [claimName, setClaimName] = useState('');
  const [claimNote, setClaimNote] = useState('');
@@ -131,9 +148,10 @@ function App() {
    <div className="bottom-grid"><section className="panel"><div className="panel-heading"><div><small>A PLACE TO RETURN TO</small><h3>Your favorite places</h3></div><button className="link" onClick={()=>setPage('Territory')}>See all →</button></div>{places.slice(0,3).map(p=><div className="place-row" key={p.id}><span className="place-icon"><Trees size={18}/></span><div><strong>{p.name}</strong><p>{p.kind} · {p.note}</p></div></div>)}</section><section className="panel reflection"><Sparkles size={21}/><small>A MOMENT FOR YOU</small><h3>There is no rush<br/>to become.</h3><p>You can grow at your own pace. Rest, explore, change your mind. This space belongs to you.</p><button className="link" onClick={()=>setPage('Moon Journal')}>Leave yourself a note →</button></section></div>
   </section>}
   {page==='Territory' && <section className="page"><div className="kicker">✦ &nbsp; YOUR PERSONAL WILDERNESS</div><h1>Claim your <em>territory.</em></h1><p className="intro">Explore the map, pin meaningful places, and draw the boundaries of your own world.</p>
+   <div className="location-tools"><button className="primary" type="button" onClick={locateMe} disabled={locationBusy}><MapPin size={15}/>{locationBusy?'Finding you…':'Use my current location'}</button><span className="privacy">{locationStatus}</span></div><p className="privacy location-privacy">Moonbay asks only when you tap the button. Your coordinates are shown temporarily on this map and are not added to saved markers or sent to Moonbay's server.</p>
    <form className="map-search" onSubmit={async e=>{e.preventDefault();if(!mapSearch.trim())return;setSearchStatus('Searching the map…');try{const response=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(mapSearch.trim()));if(!response.ok)throw new Error('Search unavailable');const results=await response.json();if(!results.length){setSearchStatus('No matching place found. Try a nearby town or landmark.');return;}const point:[number,number]=[Number(results[0].lat),Number(results[0].lon)];setFlyTo(point);setSelectedPoint(point);setMapMode('pin');setMapMessage('Search result selected. Give this place a name to save it.');setSearchStatus(results[0].display_name);}catch{setSearchStatus('Map search is unavailable right now. You can still zoom and click the map manually.');}}}><input value={mapSearch} onChange={e=>setMapSearch(e.target.value)} placeholder="Search a city, park, landmark, or address" aria-label="Search map"/><button className="primary" type="submit"><Compass size={15}/> Search map</button></form><p className="privacy map-search-help">Place search uses OpenStreetMap's public search service. Your saved map markers and boundaries stay in this browser.</p>{searchStatus&&<p className="map-search-status">{searchStatus}</p>}
    <div className="map-toolbar"><div className="map-tool-group"><button className={'map-tool '+(mapMode==='view'?'selected':'')} onClick={()=>{setMapMode('view');setMapMessage('Explore the map. Your saved places and boundaries stay private in this browser.');}}><Compass size={15}/> Explore</button><button className={'map-tool '+(mapMode==='pin'?'selected':'')} onClick={()=>{setMapMode('pin');setSelectedPoint(null);setMapMessage('Click the map where you want to place a marker.');}}><MapPin size={15}/> Claim a place</button><button className={'map-tool '+(mapMode==='boundary'?'selected':'')} onClick={()=>{setMapMode('boundary');setDraftBoundary([]);setMapMessage('Click at least three points around an area, then save the boundary.');}}><PencilRuler size={15}/> Draw territory</button></div><span className="map-status">{mapMessage}</span></div>
-   <TerritoryMap claims={claims} boundaries={boundaries} draftBoundary={draftBoundary} flyTo={flyTo} mode={mapMode} onMapClick={point=>{if(mapMode==='pin'){setSelectedPoint(point);setMapMessage('Location selected. Give this place a name below.');}else if(mapMode==='boundary'){setDraftBoundary(points=>[...points,point]);setMapMessage('Boundary point added · '+(draftBoundary.length+1)+' point(s). Add at least three.');}}}/>
+   <TerritoryMap claims={claims} boundaries={boundaries} draftBoundary={draftBoundary} flyTo={flyTo} userLocation={userLocation} mode={mapMode} onMapClick={point=>{if(mapMode==='pin'){setSelectedPoint(point);setMapMessage('Location selected. Give this place a name below.');}else if(mapMode==='boundary'){setDraftBoundary(points=>[...points,point]);setMapMessage('Boundary point added · '+(draftBoundary.length+1)+' point(s). Add at least three.');}}}/>
    {mapMode==='pin' && <form className="panel map-editor" onSubmit={e=>{e.preventDefault();if(!selectedPoint||!claimName.trim())return;setClaims(items=>[...items,{id:Date.now(),name:claimName.trim(),kind:'Claimed place',note:claimNote.trim(),lat:selectedPoint[0],lng:selectedPoint[1]}]);setClaimName('');setClaimNote('');setSelectedPoint(null);setMapMode('view');setMapMessage('Your place has been saved to this browser.');}}><div><small>NEW MAP MARKER</small><h3>{selectedPoint?'Name this place':'Click the map to choose a spot'}</h3>{selectedPoint&&<p className="coordinates">{selectedPoint[0].toFixed(5)}, {selectedPoint[1].toFixed(5)}</p>}</div><input value={claimName} onChange={e=>setClaimName(e.target.value)} placeholder="Place name, e.g. Fern Hollow" required/><input value={claimNote} onChange={e=>setClaimNote(e.target.value)} placeholder="Optional note"/><button className="primary" type="submit" disabled={!selectedPoint||!claimName.trim()}><Check size={15}/> Save place</button></form>}
    {mapMode==='boundary' && <div className="panel map-editor"><div><small>BOUNDARY BUILDER</small><h3>Outline your territory</h3><p className="privacy">Click at least three points on the map to outline an area. The last point connects back to the first.</p></div><input value={boundaryName} onChange={e=>setBoundaryName(e.target.value)} placeholder="Name this territory"/><div className="map-editor-actions"><button className="primary" disabled={draftBoundary.length<3||!boundaryName.trim()} onClick={()=>{setBoundaries(items=>[...items,{id:Date.now(),name:boundaryName.trim(),points:draftBoundary}]);setDraftBoundary([]);setMapMode('view');setMapMessage('Territory boundary saved in this browser.');}}><Check size={15}/> Save boundary ({draftBoundary.length} points)</button><button className="map-tool" onClick={()=>setDraftBoundary(points=>points.slice(0,-1))} disabled={!draftBoundary.length}>Undo point</button><button className="map-tool" onClick={()=>{setDraftBoundary([]);setMapMode('view');setMapMessage('Boundary drawing cancelled.');}}><X size={15}/> Cancel</button></div></div>}
    <div className="territory-summary"><section className="panel"><div className="panel-heading"><div><small>YOUR MARKERS</small><h3>Claimed places</h3></div><span>{claims.length} saved</span></div>{claims.length===0?<p className="privacy">No markers yet. Choose “Claim a place” and click anywhere on the map.</p>:claims.map(claim=><div className="claim-row" key={claim.id}><span className="place-icon"><MapPin size={17}/></span><div><strong>{claim.name}</strong><p>{claim.note||claim.kind} · {claim.lat.toFixed(3)}, {claim.lng.toFixed(3)}</p></div><button className="link" onClick={()=>setClaims(items=>items.filter(item=>item.id!==claim.id))}>Remove</button></div>)}</section><section className="panel"><div className="panel-heading"><div><small>YOUR BORDERS</small><h3>Territory areas</h3></div><span>{boundaries.length} saved</span></div>{boundaries.length===0?<p className="privacy">Draw an outline on the map to create your first territory area.</p>:boundaries.map(boundary=><div className="claim-row" key={boundary.id}><span className="place-icon"><Trees size={17}/></span><div><strong>{boundary.name}</strong><p>{boundary.points.length} boundary points</p></div><button className="link" onClick={()=>setBoundaries(items=>items.filter(item=>item.id!==boundary.id))}>Remove</button></div>)}</section></div>
