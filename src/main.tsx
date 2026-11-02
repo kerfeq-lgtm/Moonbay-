@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Moon, PawPrint, Trees, BookOpen, MapPin, Settings2, Plus, Sparkles, Trash2, ChevronRight } from 'lucide-react';
 import './style.css';
@@ -27,8 +28,8 @@ function App() {
  useEffect(() => { localStorage.setItem('moonbay-places', JSON.stringify(places)); }, [places]);
  useEffect(() => { localStorage.setItem('moonbay-entries', JSON.stringify(entries)); }, [entries]);
  useEffect(() => { localStorage.setItem('moonbay-accent', JSON.stringify(accent)); }, [accent]);
- const saveEntry = (e: React.FormEvent) => { e.preventDefault(); if (!journal.trim()) return; setEntries([{ id: Date.now(), date: new Date().toLocaleDateString(), mood, text: journal.trim() }, ...entries]); setJournal(''); };
- const addPlace = (e: React.FormEvent) => { e.preventDefault(); if (!newPlace.trim()) return; setPlaces([...places, { id: Date.now(), name: newPlace.trim(), kind: 'Sanctuary', note: newNote.trim() || 'A special place in your territory.' }]); setNewPlace(''); setNewNote(''); };
+ const saveEntry = (e: FormEvent) => { e.preventDefault(); if (!journal.trim()) return; setEntries([{ id: Date.now(), date: new Date().toLocaleDateString(), mood, text: journal.trim() }, ...entries]); setJournal(''); };
+ const addPlace = (e: FormEvent) => { e.preventDefault(); if (!newPlace.trim()) return; setPlaces([...places, { id: Date.now(), name: newPlace.trim(), kind: 'Sanctuary', note: newNote.trim() || 'A special place in your territory.' }]); setNewPlace(''); setNewNote(''); };
  const nav = [{ label: 'The Den', icon: Moon }, { label: 'Territory', icon: MapPin }, { label: 'Moon Journal', icon: BookOpen }, { label: 'Settings', icon: Settings2 }];
  return <div className={'app accent-' + accent}>
   <aside className="sidebar"><div className="brand"><div className="brand-mark"><Moon size={23}/><Sparkles size={12}/></div><div><strong>moonbay</strong><span>your quiet corner of the wild</span></div></div>
