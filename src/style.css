@@ -31,3 +31,6 @@
 @media(max-width:720px){.sidebar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.brand{grid-column:1/-1;padding-bottom:10px}.sidebar .nav-item{width:100%;min-width:0;justify-content:flex-start;margin:0}.weather-search{flex-direction:column}.weather-search .primary{align-self:flex-start}}
 
 .sidebar{overflow-y:auto}.backup-restore{display:grid;gap:9px;margin-top:15px;font-size:11px;color:#9aa697}.backup-restore input{width:100%;font-size:10px;color:#9aa697}.backup-restore input::file-selector-button{border:1px solid #3b4a39;border-radius:6px;background:#202a21;color:var(--accent);padding:8px;margin-right:9px;cursor:pointer}
+
+.location-tools{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 8px}.location-tools .primary{display:inline-flex;align-items:center;gap:8px}.location-tools .privacy{margin:0;max-width:560px}.location-privacy{margin:0 0 16px;max-width:800px;line-height:1.65}.moonbay-current-location{background:transparent;border:0}.moonbay-current-location span{display:block;width:18px;height:18px;border:4px solid #fff;border-radius:50%;background:#4185f4;box-shadow:0 0 0 7px #4185f455,0 2px 8px #0009}
+@media(max-width:720px){.location-tools{align-items:flex-start;flex-direction:column;gap:8px}.location-tools .primary{width:100%;justify-content:center}}
